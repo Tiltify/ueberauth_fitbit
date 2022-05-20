@@ -9,18 +9,19 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
     client_secret: System.get_env("FITBIT_APP_SECRET")
   """
   use OAuth2.Strategy
+  alias OAuth2.Strategy.AuthCode
 
   @defaults [
     strategy: __MODULE__,
-    site: "https://api.fitbit.com",
+    site: "https://api.fitbit.com/",
     authorize_url: "https://www.fitbit.com/oauth2/authorize",
     token_url: "https://api.fitbit.com/oauth2/token",
     headers: [{"Content-Type", "application/x-www-form-urlencoded"}]
   ]
 
   @doc false
-  def options(opts \\ [], app \\ Application) do
-    config = app.get_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth)
+  def options(opts \\ []) do
+    config = Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth)
 
     @defaults
     |> Keyword.merge(config)
@@ -44,7 +45,12 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
   These options are only useful for usage outside the normal callback phase of Ueberauth.
   """
   def client(opts \\ []) do
-    OAuth2.Client.new(options(opts))
+    json_library = Ueberauth.json_library()
+
+    opts
+    |> options()
+    |> OAuth2.Client.new()
+    |> OAuth2.Client.put_serializer("application/json", json_library)
   end
 
   @doc """
@@ -62,32 +68,43 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
   """
   def authorize_url!(params \\ [], opts \\ []) do
     opts
-    |> client
+    |> client()
     |> OAuth2.Client.authorize_url!(params)
   end
 
   def get(token, url, headers \\ [], opts \\ []) do
-    client([token: token])
-    |> put_param("client_secret", client().client_secret)
+    client(token: token)
+    |> put_param(:client_secret, client().client_secret)
     |> OAuth2.Client.get(url, headers, opts)
   end
 
-  def get_token!(params \\ [], opts \\ []) do
-    opts
-    |> signed_client
-    |> OAuth2.Client.get_token!(params)
+  def get_token(params \\ [], opts \\ []) do
+    client = opts |> signed_client()
+    code = Map.get(params, "code")
+
+    case OAuth2.Client.get_token(client, code: code) do
+      {:error, %{body: %{"errors" => errors, "message" => description}}} ->
+        {:error, {errors, description}}
+
+      {:ok, %{token: %{access_token: nil} = token}} ->
+        %{"errors" => errors, "message" => description} = token.other_params
+        {:error, {errors, description}}
+
+      {:ok, %{token: token}} ->
+        {:ok, token}
+    end
   end
 
   # Strategy Callbacks
 
   def authorize_url(client, params) do
-    OAuth2.Strategy.AuthCode.authorize_url(client, params)
+    AuthCode.authorize_url(client, params)
   end
 
   def get_token(client, params, headers) do
     client
+    |> put_param(:client_secret, client.client_secret)
     |> put_header("Accept", "application/json")
-    |> OAuth2.Strategy.AuthCode.get_token(params, headers)
+    |> AuthCode.get_token(params, headers)
   end
-
 end

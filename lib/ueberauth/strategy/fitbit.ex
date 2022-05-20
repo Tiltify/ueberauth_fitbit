@@ -3,13 +3,15 @@ defmodule Ueberauth.Strategy.Fitbit do
   Fitbit Strategy for Üeberauth.
   """
 
-  use Ueberauth.Strategy, uid_field: :user_id,
-                          default_scope: "activity nutrition profile settings sleep social weight",
-                          oauth2_module: Ueberauth.Strategy.Fitbit.OAuth
+  use Ueberauth.Strategy,
+    uid_field: :user_id,
+    default_scope: "activity nutrition profile settings sleep social weight",
+    oauth2_module: Ueberauth.Strategy.Fitbit.OAuth
 
   alias Ueberauth.Auth.Info
   alias Ueberauth.Auth.Credentials
   alias Ueberauth.Auth.Extra
+  alias Ueberauth.Strategy.Fitbit.OAuth
 
   @doc """
   Handles initial request for Fitbit authentication.
@@ -21,23 +23,22 @@ defmodule Ueberauth.Strategy.Fitbit do
     opts =
       if conn.params["state"], do: Keyword.put(opts, :state, conn.params["state"]), else: opts
 
-    module = option(conn, :oauth2_module)
-    redirect!(conn, apply(module, :authorize_url!, [opts]))
+    url = OAuth.authorize_url!(opts)
+    redirect!(conn, url)
   end
 
   @doc """
   Handles the callback from Fitbit.
   """
-  def handle_callback!(%Plug.Conn{ params: %{ "code" => code } } = conn) do
+  def handle_callback!(%Plug.Conn{params: %{"code" => _code} = params} = conn) do
     opts = [redirect_uri: callback_url(conn)]
-    client = Ueberauth.Strategy.Fitbit.OAuth.get_token!([code: code], opts)
-    token = client.token
 
-    if token.access_token == nil do
-      set_errors!(conn, [error(token.other_params["error"], token.other_params["error_description"])])
-    else
-      # We need to reset the client in the token here because it has basic auth in the headers
-      fetch_user(conn, Map.put(token, :client, Ueberauth.Strategy.Fitbit.OAuth.client))
+    case OAuth.get_token(params, opts) do
+      {:ok, token} ->
+        fetch_user(conn, token)
+
+      {:error, {error_code, error_description}} ->
+        set_errors!(conn, [error(error_code, error_description)])
     end
   end
 
@@ -58,7 +59,7 @@ defmodule Ueberauth.Strategy.Fitbit do
   """
   def uid(conn) do
     # user id is the only reasonable uid field for this strategy
-    Map.get(conn.private.fitbit_token.other_params, "user_id")
+    Map.get(conn.private.fitbit_user, "encodedId")
   end
 
   @doc """
@@ -74,7 +75,7 @@ defmodule Ueberauth.Strategy.Fitbit do
       scopes: scopes,
       token: token.access_token,
       refresh_token: token.refresh_token,
-      other: %{ token_type: token.token_type }
+      other: %{token_type: token.token_type}
     }
   end
 
@@ -85,8 +86,10 @@ defmodule Ueberauth.Strategy.Fitbit do
     user = conn.private.fitbit_user
 
     %Info{
+      first_name: user["firstName"],
+      last_name: user["lastName"],
       name: user["fullName"] || user["displayName"],
-      nickname: user["nickname"] || user["displayName"],
+      nickname: user["displayName"],
       description: user["aboutMe"],
       image: user["avatar"],
       urls: %{
@@ -115,13 +118,19 @@ defmodule Ueberauth.Strategy.Fitbit do
 
   defp fetch_user(conn, token) do
     conn = put_private(conn, :fitbit_token, token)
+    profile_path = "/1/user/-/profile.json"
 
-    case Ueberauth.Strategy.Fitbit.OAuth.get(token, "/1/user/-/profile.json") do
-      { :ok, %OAuth2.Response{status_code: 401, body: _body } } ->
+    case OAuth.get(token, profile_path) do
+      {:ok, %OAuth2.Response{status_code: 401, body: _body}} ->
         set_errors!(conn, [error("token", "unauthorized")])
-      { :ok, %OAuth2.Response{ status_code: status_code, body: res } } when status_code in 200..399 ->
+
+      {:ok, %OAuth2.Response{status_code: status_code, body: res}} when status_code in 200..399 ->
         put_private(conn, :fitbit_user, res["user"])
-      { :error, %OAuth2.Error{ reason: reason } } ->
+
+      {:error, %OAuth2.Response{status_code: status_code}} ->
+        set_errors!(conn, [error("OAuth2", status_code)])
+
+      {:error, %OAuth2.Error{reason: reason}} ->
         set_errors!(conn, [error("OAuth2", reason)])
     end
   end
@@ -129,5 +138,4 @@ defmodule Ueberauth.Strategy.Fitbit do
   defp option(conn, key) do
     Keyword.get(options(conn), key, Keyword.get(default_options(), key))
   end
-
 end
