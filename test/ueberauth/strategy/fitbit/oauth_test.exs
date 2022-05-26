@@ -13,33 +13,11 @@ defmodule Ueberauth.Strategy.Fitbit.OAuthTest do
     )
   end
 
-  describe "client/0" do
-    test "returns client" do
-      client = OAuth.client()
-
-      assert client == client()
-    end
-  end
-
-  describe "basic_token/0" do
-    setup do
-      Application.put_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth,
-        client_id: "client_id",
-        client_secret: "client_secret",
-        redirect_uri: "https://myapp.com/auth/fitbit/callback"
-      )
-    end
-
-    test "returns basic token" do
-      assert OAuth.basic_token() == "Basic Y2xpZW50X2lkOmNsaWVudF9zZWNyZXQ="
-    end
-  end
-
   describe "authorize_url!/2" do
     @default_expected_url "https://www.fitbit.com/oauth2/authorize?client_id=client_id&redirect_uri=https%3A%2F%2Fmyapp.com%2Fauth%2Ffitbit%2Fcallback&response_type=code"
-
     test "returns authorization url" do
-      assert OAuth.authorize_url!() == "#{@default_expected_url}&scope=profile"
+      assert OAuth.authorize_url!() ==
+               "#{@default_expected_url}"
     end
 
     test "returns authorization url with selected scope" do
@@ -75,7 +53,7 @@ defmodule Ueberauth.Strategy.Fitbit.OAuthTest do
     test "get access and refresh tokens" do
       with_mocks([{OAuth2.Client, [:passthrough], [get_token: &get_token_mock/2]}]) do
         params = [code: "some_special_code"]
-        assert {:ok, client} = OAuth.get_token(params, [])
+        assert {:ok, %OAuth2.Client{} = client} = OAuth.get_token(params, [])
 
         assert client.token == %OAuth2.AccessToken{
                  access_token: "<access_token>",
@@ -227,24 +205,5 @@ defmodule Ueberauth.Strategy.Fitbit.OAuthTest do
          _opts
        ) do
     {:ok, %OAuth2.Response{body: "", headers: [], status_code: 301}}
-  end
-
-  defp client(token \\ nil) do
-    %OAuth2.Client{
-      authorize_url: "https://www.fitbit.com/oauth2/authorize",
-      client_id: "client_id",
-      client_secret: "client_secret",
-      headers: [{"Content-Type", "application/x-www-form-urlencoded"}],
-      params: %{},
-      redirect_uri: "https://myapp.com/auth/fitbit/callback",
-      ref: nil,
-      request_opts: [],
-      serializers: %{"application/json" => Jason},
-      site: "https://api.fitbit.com/",
-      strategy: Ueberauth.Strategy.Fitbit.OAuth,
-      token: token,
-      token_method: :post,
-      token_url: "https://api.fitbit.com/oauth2/token"
-    }
   end
 end
