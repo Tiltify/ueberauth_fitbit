@@ -31,7 +31,7 @@ defmodule UeberauthFitbit.Mixfile do
       {:ex_doc, ">= 0.24.2", only: :dev, runtime: false},
       {:earmark, ">= 0.0.0", only: :dev},
       {:dogma, ">= 0.0.0", only: [:dev, :test]},
-      {:mock, "~> 0.3.7", only: :test}
+      {:mock, "~> 0.3.0", only: :test}
     ]
   end
 
