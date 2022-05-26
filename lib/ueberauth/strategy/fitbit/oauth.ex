@@ -65,14 +65,7 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
       |> client()
       |> put_header("Authorization", basic_token())
 
-      OAuth2.Client.get_token(client, code: params[:code])
-    # case OAuth2.Client.get_token(client, code: params[:code]) do
-    #   {:error, %{body: %{"success" => false, "errors" => errors}}} ->
-    #     {:error, {errors}}
-
-    #   {:ok, %{token: token}} ->
-    #     {:ok, token}
-    # end
+    OAuth2.Client.get_token(client, code: params[:code])
   end
 
   def get(token, url, headers \\ [], opts \\ []) do
