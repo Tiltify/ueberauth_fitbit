@@ -5,89 +5,75 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
   Add `client_id` and `client_secret` to your configuration:
 
   config :ueberauth, Ueberauth.Strategy.Fitbit.OAuth,
-    client_id: System.get_env("FITBIT_APP_ID"),
-    client_secret: System.get_env("FITBIT_APP_SECRET")
+    client_id: System.get_env("FITBIT_CLIENT_ID"),
+    client_secret: System.get_env("FITBIT_CLIENT_SECRET"),
   """
   use OAuth2.Strategy
+  alias OAuth2.Strategy.AuthCode
 
-  @defaults [
+  @fitbit_config [
     strategy: __MODULE__,
-    site: "https://api.fitbit.com",
+    headers: [{"Content-Type", "application/x-www-form-urlencoded"}],
+    site: "https://api.fitbit.com/",
     authorize_url: "https://www.fitbit.com/oauth2/authorize",
-    token_url: "https://api.fitbit.com/oauth2/token",
-    headers: [{"Content-Type", "application/x-www-form-urlencoded"}]
+    token_url: "https://api.fitbit.com/oauth2/token"
   ]
 
-  @doc false
-  def options(opts \\ [], app \\ Application) do
-    config = app.get_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth)
+  defp client(opts \\ []) do
+    opts =
+      @fitbit_config ++
+        oauth_config() ++
+        opts
 
-    @defaults
-    |> Keyword.merge(config)
-    |> Keyword.merge(opts)
-  end
+    json_lib = Ueberauth.json_library()
 
-  @doc """
-  Generate Authentication: Basic Base64<CLIENT_ID>:<CLIENT_SECRET>
-  """
-  def auth_sig(opts \\ []) do
-    opts = options(opts)
-    sig = Base.encode64(opts[:client_id] <> ":" <> opts[:client_secret])
-
-    "Basic #{sig}"
-  end
-
-  @doc """
-  Construct a client for requests to Fitbit.
-
-  This will be setup automatically for you in `Ueberauth.Strategy.Fitbit`.
-  These options are only useful for usage outside the normal callback phase of Ueberauth.
-  """
-  def client(opts \\ []) do
-    OAuth2.Client.new(options(opts))
-  end
-
-  @doc """
-  Construct a signed client for token and refresh token requests
-  """
-  def signed_client(opts \\ []) do
     opts
-    |> client
-    |> put_header("Authorization", auth_sig(opts))
+    |> OAuth2.Client.new()
+    |> OAuth2.Client.put_serializer("application/json", json_lib)
   end
 
   @doc """
   Provides the authorize url for the request phase of Ueberauth. No need to call this usually.
   client_id:client_secret
   """
-  def authorize_url!(params \\ [], opts \\ []) do
-    opts
-    |> client
-    |> OAuth2.Client.authorize_url!(params)
+  def authorize_url!(opts \\ []) do
+    OAuth2.Client.authorize_url!(client(), opts)
+  end
+
+  def get_token(params \\ [], opts \\ []) do
+    client =
+      opts
+      |> client()
+      |> put_header("Authorization", basic_token())
+
+    params = Enum.reject(params, fn {_key, value} -> is_nil(value) end)
+
+    OAuth2.Client.get_token(client, params)
   end
 
   def get(token, url, headers \\ [], opts \\ []) do
-    client([token: token])
-    |> put_param("client_secret", client().client_secret)
-    |> OAuth2.Client.get(url, headers, opts)
+    OAuth2.Client.get(client(token: token), url, headers, opts)
   end
 
-  def get_token!(params \\ [], opts \\ []) do
-    opts
-    |> signed_client
-    |> OAuth2.Client.get_token!(params)
+  defp basic_token do
+    config = oauth_config()
+    token = Base.encode64("#{config[:client_id]}:#{config[:client_secret]}")
+
+    "Basic #{token}"
   end
+
+  defp oauth_config, do: Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth)
 
   # Strategy Callbacks
 
   def authorize_url(client, params) do
-    OAuth2.Strategy.AuthCode.authorize_url(client, params)
+    AuthCode.authorize_url(client, params)
   end
 
   def get_token(client, params, headers) do
     client
+    |> put_header("Authorization", basic_token())
     |> put_header("Accept", "application/json")
-    |> OAuth2.Strategy.AuthCode.get_token(params, headers)
+    |> AuthCode.get_token(params, headers)
   end
-
 end
