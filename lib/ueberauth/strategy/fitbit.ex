@@ -11,9 +11,9 @@ defmodule Ueberauth.Strategy.Fitbit do
     oauth2_module: Ueberauth.Strategy.Fitbit.OAuth,
     ignores_csrf_attack: false
 
-  alias Ueberauth.Auth.Info
   alias Ueberauth.Auth.Credentials
   alias Ueberauth.Auth.Extra
+  alias Ueberauth.Auth.Info
   alias Ueberauth.Strategy.Fitbit.OAuth
 
   @doc """
@@ -129,7 +129,7 @@ defmodule Ueberauth.Strategy.Fitbit do
     }
   end
 
-  defp strategy_config(), do: Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit)
+  defp strategy_config, do: Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit)
 
   defp fetch_user(conn, token) do
     conn = put_private(conn, :fitbit_token, token)

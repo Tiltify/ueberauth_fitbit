@@ -55,14 +55,14 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
     OAuth2.Client.get(client(token: token), url, headers, opts)
   end
 
-  defp basic_token() do
+  defp basic_token do
     config = oauth_config()
     token = Base.encode64("#{config[:client_id]}:#{config[:client_secret]}")
 
     "Basic #{token}"
   end
 
-  defp oauth_config(), do: Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth)
+  defp oauth_config, do: Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth)
 
   # Strategy Callbacks
 
