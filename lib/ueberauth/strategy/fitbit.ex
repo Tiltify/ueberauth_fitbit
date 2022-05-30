@@ -6,9 +6,6 @@ defmodule Ueberauth.Strategy.Fitbit do
   use Ueberauth.Strategy,
     strategy: __MODULE__,
     headers: [{"Content-Type", "application/x-www-form-urlencoded"}],
-    site: "https://api.fitbit.com/",
-    authorize_url: "https://www.fitbit.com/oauth2/authorize",
-    token_url: "https://api.fitbit.com/oauth2/token",
     default_scope: "profile",
     uid_field: :user_id,
     oauth2_module: Ueberauth.Strategy.Fitbit.OAuth,
@@ -47,11 +44,11 @@ defmodule Ueberauth.Strategy.Fitbit do
       {:ok, %OAuth2.Client{token: token}} ->
         fetch_user(conn, token)
 
-      {:error, %OAuth2.Response{status_code: status_code}} ->
-        set_errors!(conn, [error("OAuth2", status_code)])
-
       {:error, %OAuth2.Response{body: %{"errors" => errors, "success" => false}}} ->
         set_errors!(conn, [error("OAuth2", errors)])
+
+      {:error, %OAuth2.Response{status_code: status_code}} ->
+        set_errors!(conn, [error("OAuth2", status_code)])
 
       {:error, %OAuth2.Error{reason: reason}} ->
         set_errors!(conn, [error("OAuth2", reason)])

@@ -4,11 +4,14 @@ defmodule Ueberauth.Strategy.FitbitTest do
 
   import Mock
   alias Ueberauth.Strategy.Helpers
-  @moduletag timeout: 3000
 
   alias Plug.Conn.Query
 
   setup do
+    Application.put_env(:ueberauth, Ueberauth,
+      providers: [fitbit: {Ueberauth.Strategy.Fitbit, []}]
+    )
+
     Application.put_env(:ueberauth, Ueberauth.Strategy.Fitbit.OAuth,
       client_id: "client_id",
       client_secret: "client_secret"

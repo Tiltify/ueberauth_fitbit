@@ -25,9 +25,11 @@ defmodule Ueberauth.Strategy.Fitbit.OAuth do
         oauth_config() ++
         opts
 
+    json_lib = Ueberauth.json_library()
+
     opts
     |> OAuth2.Client.new()
-    |> OAuth2.Client.put_serializer("application/json", Jason)
+    |> OAuth2.Client.put_serializer("application/json", json_lib)
   end
 
   @doc """
