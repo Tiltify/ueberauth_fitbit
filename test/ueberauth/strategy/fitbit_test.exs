@@ -22,8 +22,12 @@ defmodule Ueberauth.Strategy.FitbitTest do
 
   describe "handle_request!" do
     test "redirects to fitbit authorization url" do
-      Application.put_env(:ueberauth, Ueberauth.Strategy.Fitbit,
-        default_scope: "activity nutrition profile settings sleep social weight"
+      Application.put_env(:ueberauth, Ueberauth,
+        providers: [
+          fitbit:
+            {Ueberauth.Strategy.Fitbit,
+             [default_scope: "activity nutrition profile settings sleep social weight"]}
+        ]
       )
 
       conn = conn(:get, "/auth/fitbit", %{})
