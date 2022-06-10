@@ -20,12 +20,11 @@ defmodule Ueberauth.Strategy.Fitbit do
   Handles initial request for Fitbit authentication.
   """
   def handle_request!(conn) do
-    scope =
-      strategy_config()[:default_scope] ||
-        Keyword.get(default_options(), :default_scope)
+    scopes = conn.params["scope"] || option(conn, :default_scope)
+    opts = [redirect_uri: callback_url(conn), scope: scopes]
 
     state = Map.get(conn.params, "state", conn.private[:ueberauth_state_param])
-    opts = [redirect_uri: callback_url(conn), scope: scope, state: state]
+    opts = if state, do: Keyword.put(opts, :state, state), else: opts
     url = OAuth.authorize_url!(opts)
 
     redirect!(conn, url)
@@ -129,8 +128,6 @@ defmodule Ueberauth.Strategy.Fitbit do
     }
   end
 
-  defp strategy_config, do: Application.get_env(:ueberauth, Ueberauth.Strategy.Fitbit)
-
   defp fetch_user(conn, token) do
     conn = put_private(conn, :fitbit_token, token)
     profile_path = "1/user/-/profile.json"
@@ -148,5 +145,13 @@ defmodule Ueberauth.Strategy.Fitbit do
       {:error, %OAuth2.Error{reason: reason}} ->
         set_errors!(conn, [error("OAuth2", reason)])
     end
+  end
+
+  defp option(conn, key) do
+    default = Keyword.get(default_options(), key)
+
+    conn
+    |> options
+    |> Keyword.get(key, default)
   end
 end
