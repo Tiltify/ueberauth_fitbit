@@ -25,7 +25,7 @@ defmodule UeberauthFitbit.Mixfile do
 
   defp deps do
     [
-      {:ueberauth, "~> 0.6"},
+      {:ueberauth, "~> 0.10.3"},
       {:oauth2, "~> 1.0 or ~> 2.0"},
       {:credo, "~> 1.6", only: [:dev, :test]},
       {:ex_doc, ">= 0.24.2", only: :dev, runtime: false},
