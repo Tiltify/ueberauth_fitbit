@@ -21,10 +21,11 @@ defmodule Ueberauth.Strategy.Fitbit do
   """
   def handle_request!(conn) do
     scopes = conn.params["scope"] || option(conn, :default_scope)
-    opts = [redirect_uri: callback_url(conn), scope: scopes]
 
-    state = Map.get(conn.params, "state", conn.private[:ueberauth_state_param])
-    opts = if state, do: Keyword.put(opts, :state, state), else: opts
+    opts =
+      [redirect_uri: callback_url(conn), scope: scopes]
+      |> with_state_param(conn)
+
     url = OAuth.authorize_url!(opts)
 
     redirect!(conn, url)
